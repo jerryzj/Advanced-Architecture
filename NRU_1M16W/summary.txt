@@ -1,0 +1,44 @@
+gcc.166.stderr
+sim_IPC                      3.9384 # instructions per cycle
+ul2.miss_rate                0.0050 # miss rate (i.e., misses/ref)
+
+eon.cook.stderr
+sim_IPC                      1.5131 # instructions per cycle
+ul2.miss_rate                0.0000 # miss rate (i.e., misses/ref)
+
+twolf.ref.stderr
+sim_IPC                      1.1053 # instructions per cycle
+ul2.miss_rate                0.0502 # miss rate (i.e., misses/ref)
+
+ammp.ref.stderr
+sim_IPC                      0.5942 # instructions per cycle
+ul2.miss_rate                0.0020 # miss rate (i.e., misses/ref)
+
+equake.ref.stderr
+sim_IPC                      1.8109 # instructions per cycle
+ul2.miss_rate                0.0014 # miss rate (i.e., misses/ref)
+
+parser.ref.stderr
+sim_IPC                      1.4895 # instructions per cycle
+ul2.miss_rate                0.0720 # miss rate (i.e., misses/ref)
+
+swim.ref.stderr
+sim_IPC                      0.8240 # instructions per cycle
+ul2.miss_rate                0.5907 # miss rate (i.e., misses/ref)
+
+fma3d.ref.stderr
+sim_IPC                      2.4648 # instructions per cycle
+ul2.miss_rate                0.0000 # miss rate (i.e., misses/ref)
+
+mcf.inp.stderr
+sim_IPC                      0.1987 # instructions per cycle
+ul2.miss_rate                0.5671 # miss rate (i.e., misses/ref)
+
+perlbmk.scrabbl.stderr
+sim_IPC                      1.2339 # instructions per cycle
+ul2.miss_rate                0.0000 # miss rate (i.e., misses/ref)
+
+mgrid.ref.stderr
+sim_IPC                      0.9637 # instructions per cycle
+ul2.miss_rate                0.0501 # miss rate (i.e., misses/ref)
+
