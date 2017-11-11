@@ -395,7 +395,8 @@ cache_create(char *name,		/* name of the cache */
 	      cp->sets[i].way_head->way_prev = blk;
 	    cp->sets[i].way_head = blk;
 	    if (!cp->sets[i].way_tail)
-	      cp->sets[i].way_tail = blk;
+        cp->sets[i].way_tail = blk;
+      blk->NRU_bit = TRUE;                                         /*Initialize NRU_bit*/
 	  }
   }
   return cp;
@@ -580,6 +581,26 @@ cache_access(struct cache_t *cp,	/* cache to access */
     break;
     case NRU:{
         /*Code goes here*/
+        int found = 0;    // found victim block
+        while(found ==0 ){
+          for (blk=cp->sets[set].way_head;blk;blk=blk->way_next)
+          {
+            if (blk->NRU_bit == TRUE)
+            {
+              found = 1;
+              repl = blk;
+              repl->NRU_bit = FALSE;
+              break;
+            }  
+          }
+          if(found == 0){
+            for (blk=cp->sets[set].way_head;blk;blk=blk->way_next)
+            {
+              blk->NRU_bit = TRUE;
+            }
+          }  
+        }
+        
     }
     break;  
     default:
@@ -671,6 +692,9 @@ cache_access(struct cache_t *cp,	/* cache to access */
   {
     /* move this block to head of the way (MRU) list */
     update_way_list(&cp->sets[set], blk, Head);
+  }
+  else if(cp->policy == NRU){
+    blk->NRU_bit = FALSE;         /* Set NRU_bit =0 if block is referenced */
   }
 
   /* tag is unchanged, so hash links (if they exist) are still valid */
