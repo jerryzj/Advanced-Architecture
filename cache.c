@@ -640,10 +640,10 @@ cache_access(struct cache_t *cp,	/* cache to access */
     break;
 
     case DRRIP:{
-      for (blk=cp->sets[set].way_head;blk;blk=blk->way_next)
-      {
-        if (blk->RRPV == RRPV_MAX)
-        {
+      for (blk=cp->sets[set].way_head;blk;blk=blk->way_next){
+        
+        /* Find victim block */
+        if (blk->RRPV == RRPV_MAX){
           repl = blk;         // Set replace pointer
           
           /* SRRIP Insertion */
@@ -681,9 +681,10 @@ cache_access(struct cache_t *cp,	/* cache to access */
             }  
           }
 
-          /* Follower */
+          /* Follower Set */
           else{
-            int PSEL_MSB = PSEL >> (PSEL_LENGTH -1);
+            /* Find PSEL MSB bit by bitwise operation */
+            int PSEL_MSB = cp->PSEL >> (PSEL_LENGTH -1);
             
             /* If the MSB of the PSEL is zero 
                then follow SRRIP policy
@@ -702,6 +703,7 @@ cache_access(struct cache_t *cp,	/* cache to access */
 				      else{ 									
 					      repl->RRPV = RRPV_MAX;      
               }
+
               if (cp->BIPCTR == BIPCTR_MAX){
 					      cp->BIPCTR == 0;
               }  
@@ -710,18 +712,17 @@ cache_access(struct cache_t *cp,	/* cache to access */
               }
             }   
           }
-          break;              // Stop search
+          break;              // Stop search for victim block
         }  
 
-        /* If there is no set with RRPV to the upper bound,
+        /* If there is no set with RRPV equals to the upper bound,
            increment all RRPVs.
         */
         if(blk->way_next == NULL){
-          for (blk=cp->sets[set].way_head;blk;blk=blk->way_next)
-          {
+          for (blk=cp->sets[set].way_head;blk;blk=blk->way_next){
             blk->RRPV++;
           }
-          blk = cp->sets[set].way_head;
+          blk = cp->sets[set].way_head;   // Reset looping index
         }  
       }
     }
