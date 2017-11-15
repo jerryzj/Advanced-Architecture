@@ -53,11 +53,23 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <math.h>
 
 #include "host.h"
 #include "misc.h"
 #include "machine.h"
 #include "cache.h"
+
+/* DRRIP Counter Parameters */
+#define BIPCTR_LENGTH 5
+#define RRPV_LENGTH 3
+#define PSEL_LENGTH 10
+#define PSEL_INIT 511    /* Initial value for PSEL */
+
+/* Calculate Counter Upper bound*/
+#define BIPCTR_MAX (int)pow(2,BIPCTR_LENGTH)-1   
+#define RRPV_MAX (int)pow(2,RRPV_LENGTH)-1      
+#define PSEL_MAX (int)pow(2,PSEL_LENGTH)-1
 
 /* cache access macros */
 #define CACHE_TAG(cp, addr)	((addr) >> (cp)->tag_shift)
@@ -311,6 +323,8 @@ cache_create(char *name,		/* name of the cache */
   cp->assoc = assoc;
   cp->policy = policy;
   cp->hit_latency = hit_latency;
+  cp->BIPCTR = 0;
+  cp->PSEL = PSEL_INIT;
 
   /* miss/replacement functions */
   cp->blk_access_fn = blk_access_fn;
@@ -354,6 +368,22 @@ cache_create(char *name,		/* name of the cache */
   /* slice up the data blocks */
   for (bindex=0,i=0; i<nsets; i++)
   {
+    /* There are 32 dedicated SRRIP sets and 32 dedicated BRRIP sets, 
+       along with the remaining sets which are followers. 
+       Employ the hash functions from given file for cache conﬁgurations.
+    */
+    if(cp->policy == DRRIP){
+      if(i % (nsets/(BIPCTR_MAX+1)) == 0){
+        cp->sets[i].set_type = SRRIP;
+      }
+      else if((i+1) % (nsets/(BIPCTR_MAX+1)) == 0){
+        cp->sets[i].set_type = BRRIP;
+      }
+      else{
+        cp->sets[i].set_type = FOLLOWER;
+      }
+    }
+
     cp->sets[i].way_head = NULL;
     cp->sets[i].way_tail = NULL;
     /* get a hash table, if needed */
@@ -369,7 +399,7 @@ cache_create(char *name,		/* name of the cache */
 	    otherwise, block accesses through SET->BLKS will fail (used
 	    during random replacement selection) */
     cp->sets[i].blks = CACHE_BINDEX(cp, cp->data, bindex);
-      
+    
     /* link the data blocks into ordered way chain and hash table bucket
       chains, if hash table exists */
     for (j=0; j<assoc; j++)
@@ -396,8 +426,9 @@ cache_create(char *name,		/* name of the cache */
 	    cp->sets[i].way_head = blk;
 	    if (!cp->sets[i].way_tail)
         cp->sets[i].way_tail = blk;
-      blk->NRU_bit = TRUE;                                         /*Initialize NRU_bit*/
-	  }
+      blk->NRU_bit = TRUE;              /* Initialize NRU_bit */
+      blk->RRPV = RRPV_MAX - 1;         /* Initialize RRPV */
+    }
   }
   return cp;
 }
@@ -410,7 +441,8 @@ cache_char2policy(char c)		/* replacement policy as a char */
     case 'l': return LRU;
     case 'r': return Random;
     case 'f': return FIFO;
-    case 'n': return NRU;     //NRU policy
+    case 'n': return NRU;     // NRU policy
+    case 'd': return DRRIP;   // DRRIP policy
     default: fatal("bogus replacement policy, `%c'", c);
   }
 }
@@ -429,7 +461,8 @@ cache_config(struct cache_t *cp,	/* cache instance */
 	  cp->policy == LRU ? "LRU"
 	  : cp->policy == Random ? "Random"
     : cp->policy == FIFO ? "FIFO"
-    : cp->policy == NRU ? "NRU" //Add NRU policy
+    : cp->policy == NRU ? "NRU" // Add NRU policy
+    : cp->policy == DRROP ? "DRRIP" // Add DRRIP policy
 	  : (abort(), ""));
 }
 
@@ -569,40 +602,132 @@ cache_access(struct cache_t *cp,	/* cache to access */
      the appropriate place in the way list */
   switch (cp->policy) {
     case LRU:
-    case FIFO:
+    
+    case FIFO:{
       repl = cp->sets[set].way_tail;
       update_way_list(&cp->sets[set], repl, Head);
+    }  
     break;
+
     case Random:
     {
       int bindex = myrand() & (cp->assoc - 1);
       repl = CACHE_BINDEX(cp, cp->sets[set].blks, bindex);
     }
     break;
+
     case NRU:{
-        /*Code goes here*/
-        int found = 0;    // found victim block
-        while(found ==0 ){
-          for (blk=cp->sets[set].way_head;blk;blk=blk->way_next)
-          {
-            if (blk->NRU_bit == TRUE)
-            {
-              found = 1;
-              repl = blk;
-              repl->NRU_bit = FALSE;
-              break;
+      for(blk=cp->sets[set].way_head;blk;blk=blk->way_next){
+        
+        /* Find NRU-bit = 1 one on one */
+        if (blk->NRU_bit == TRUE){
+          repl = blk;             // Set replace pointer
+          repl->NRU_bit = FALSE;  // Set new added block 
+          break;                  // Stop search
+        }  
+
+        /* If there is no set with NRU-bit = 1,
+           set all the sets' NRU-bit = 1 
+        */
+        if(blk->way_next == NULL){
+          for (blk=cp->sets[set].way_head;blk;blk=blk->way_next){
+            blk->NRU_bit = TRUE;
+          }
+          blk=cp->sets[set].way_head;
+        }  
+      }
+    }
+    break;
+
+    case DRRIP:{
+      for (blk=cp->sets[set].way_head;blk;blk=blk->way_next){
+        
+        /* Find victim block */
+        if (blk->RRPV == RRPV_MAX){
+          repl = blk;         // Set replace pointer
+          
+          /* SRRIP Insertion */
+          if(cp->sets[set].set_type == SRRIP){
+            repl->RRPV = (RRPV_MAX - 1);
+
+            /* If SRRIP set miss, increment PSEL */
+            if (cp->PSEL <= PSEL_MAX){
+	            cp->PSEL++;
+	          }  
+          }
+
+          /* BRRIP Insertion */
+          else if(cp->sets[set].set_type == BRRIP){
+            if (cp->BIPCTR == 0){	
+					    repl->RRPV = (RRPV_MAX-1);
+            }  
+				    else{ 									
+					    repl->RRPV = RRPV_MAX;      
+            }
+
+            /* If BRRIP set miss, decrement PSEL */  
+				    if (cp->PSEL > 0){
+					    cp->PSEL--;		
+            }
+            
+            /* Reset BIPCTR if its value reaches N-bit counter's upper bound, 
+               else increment it.
+            */  
+				    if (cp->BIPCTR == BIPCTR_MAX){
+					    cp->BIPCTR == 0;
+            }  
+				    else{ 
+					    cp->BIPCTR++ ;
             }  
           }
-          if(found == 0){
-            for (blk=cp->sets[set].way_head;blk;blk=blk->way_next)
-            {
-              blk->NRU_bit = TRUE;
+
+          /* Follower Set */
+          else{
+            /* Find PSEL MSB bit by bitwise operation */
+            int PSEL_MSB = cp->PSEL >> (PSEL_LENGTH -1);
+            
+            /* If the MSB of the PSEL is zero 
+               then follow SRRIP policy
+            */
+            if (PSEL_MSB == 0) {
+               repl->RRPV = (RRPV_MAX - 1);
             }
-          }  
-        }
-        
+            
+            /* If the MSB of the PSEL is not zero 
+               then follow BRRIP policy
+            */
+            else{
+              if (cp->BIPCTR == 0){	
+					      repl->RRPV = (RRPV_MAX-1);
+              }  
+				      else{ 									
+					      repl->RRPV = RRPV_MAX;      
+              }
+
+              if (cp->BIPCTR == BIPCTR_MAX){
+					      cp->BIPCTR == 0;
+              }  
+				      else{ 
+					      cp->BIPCTR++ ;
+              }
+            }   
+          }
+          break;              // Stop search for victim block
+        }  
+
+        /* If there is no set with RRPV equals to the upper bound,
+           increment all RRPVs.
+        */
+        if(blk->way_next == NULL){
+          for (blk=cp->sets[set].way_head;blk;blk=blk->way_next){
+            blk->RRPV++;
+          }
+          blk = cp->sets[set].way_head;   // Reset looping index
+        }  
+      }
     }
-    break;  
+    break;
+
     default:
       panic("bogus replacement policy");
   }
@@ -677,6 +802,11 @@ cache_access(struct cache_t *cp,	/* cache to access */
   /* **HIT** */
   cp->hits++;
 
+  // Maybe we should discuss this...
+  /* NOTE: for L2 cache, don't update the cache line status for write requests
+  if ((strcmp(cp->name, "ul2") != 0) || (cmd == Read)) {
+    cp->hits++;
+  }*/
   /* copy data out of cache block, if block exists */
   if (cp->balloc)
   {
@@ -693,8 +823,13 @@ cache_access(struct cache_t *cp,	/* cache to access */
     /* move this block to head of the way (MRU) list */
     update_way_list(&cp->sets[set], blk, Head);
   }
-  else if(cp->policy == NRU){
-    blk->NRU_bit = FALSE;         /* Set NRU_bit =0 if block is referenced */
+  if(cp->policy == NRU)
+  {
+    blk->NRU_bit = FALSE;    /* Set NRU_bit = 0 if the block is referenced */
+  }
+  if(cp->policy == DRRIP)
+  {
+    blk->RRPV = 0;           /* Set RRPV = 0 if the block is referenced */
   }
 
   /* tag is unchanged, so hash links (if they exist) are still valid */
