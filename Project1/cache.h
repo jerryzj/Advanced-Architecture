@@ -167,7 +167,7 @@ struct cache_t
   int assoc;			/* cache associativity */
   enum cache_policy policy;	/* cache replacement policy */
   unsigned int hit_latency;	/* cache hit latency */
-  int BIPCTR;     /* 5-bit Counter for BRRIP */
+  int BIPCTR;     /* Counter for BRRIP */
   int PSEL;       /* Policy select variable */
   /* miss/replacement handler, read/write BSIZE bytes starting at BADDR
      from/into cache block BLK, returns the latency of the operation

@@ -462,11 +462,7 @@ cache_config(struct cache_t *cp,	/* cache instance */
 	  : cp->policy == Random ? "Random"
     : cp->policy == FIFO ? "FIFO"
     : cp->policy == NRU ? "NRU" // Add NRU policy
-<<<<<<< HEAD
-    : cp->policy == DRROP ? "DRRIP" // Add DRRIP policy
-=======
     : cp->policy == DRRIP ? "DRRIP" // Add DRRIP policy
->>>>>>> e2118f784d1fe9e9cfe644b022cffe83599a7c7b
 	  : (abort(), ""));
 }
 
@@ -678,11 +674,7 @@ cache_access(struct cache_t *cp,	/* cache to access */
                else increment it.
             */  
 				    if (cp->BIPCTR == BIPCTR_MAX){
-<<<<<<< HEAD
-					    cp->BIPCTR == 0;
-=======
 					    cp->BIPCTR = 0;
->>>>>>> e2118f784d1fe9e9cfe644b022cffe83599a7c7b
             }  
 				    else{ 
 					    cp->BIPCTR++ ;
@@ -713,11 +705,7 @@ cache_access(struct cache_t *cp,	/* cache to access */
               }
 
               if (cp->BIPCTR == BIPCTR_MAX){
-<<<<<<< HEAD
-					      cp->BIPCTR == 0;
-=======
 					      cp->BIPCTR = 0;
->>>>>>> e2118f784d1fe9e9cfe644b022cffe83599a7c7b
               }  
 				      else{ 
 					      cp->BIPCTR++ ;
@@ -814,11 +802,7 @@ cache_access(struct cache_t *cp,	/* cache to access */
   /* **HIT** */
   cp->hits++;
 
-  // Maybe we should discuss this...
-  /* NOTE: for L2 cache, don't update the cache line status for write requests
-  if ((strcmp(cp->name, "ul2") != 0) || (cmd == Read)) {
-    cp->hits++;
-  }*/
+  
   /* copy data out of cache block, if block exists */
   if (cp->balloc)
   {
