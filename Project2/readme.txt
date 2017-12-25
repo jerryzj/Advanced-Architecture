@@ -1,0 +1,1 @@
+Execute with ./a.out <(instruction filename)
