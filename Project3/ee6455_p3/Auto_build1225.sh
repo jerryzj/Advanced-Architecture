@@ -123,7 +123,7 @@ sudo cp -r ./results ~/Results/comb_3
 # Clean
 rm -rf ./results
 mkdir results
-
+#test
 # Set branch delay
 sed -i '35s/.*/-fetch:mplat 9/' default.baseline.cfg
 # Run SPEC2000 benchmarks
