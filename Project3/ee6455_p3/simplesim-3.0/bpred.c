@@ -83,94 +83,86 @@ bpred_create(enum bpred_class class,	/* type of predictor to create */
   pred->class = class;
 
   switch (class) {
-  case BPredComb:
-    /* bimodal component */
-    pred->dirpred.bimod = 
-      bpred_dir_create(BPred2bit, bimod_size, 0, 0, 0);
+    case BPredComb:
+      /* PAg */
+      pred->dirpred.twolev = bpred_dir_create(BPred2Level, 1024, 1024, 10, 0);
 
-    /* 2-level component */
-    pred->dirpred.twolev = 
-      bpred_dir_create(BPred2Level, l1size, l2size, shift_width, xor);
+      /* GAg */
+      pred->dirpred.bimod = bpred_dir_create(BPred2Level, 1, 4096, 12, 0);
 
-    /* metapredictor component */
-    pred->dirpred.meta = 
-      bpred_dir_create(BPred2bit, meta_size, 0, 0, 0);
+      /* metapredictor component */
+      pred->dirpred.meta = bpred_dir_create(BPred2bit, 4096, 0, 0, 0);
 
     break;
 
-  case BPred2Level:
-    pred->dirpred.twolev = 
-      bpred_dir_create(class, l1size, l2size, shift_width, xor);
+    case BPred2Level:
+      pred->dirpred.twolev = bpred_dir_create(class, l1size, l2size, shift_width, xor);
 
     break;
 
-  case BPred2bit:
-    pred->dirpred.bimod = 
-      bpred_dir_create(class, bimod_size, 0, 0, 0);
+    case BPred2bit:
+      pred->dirpred.bimod = bpred_dir_create(class, bimod_size, 0, 0, 0);
 
-  case BPredTaken:
-  case BPredNotTaken:
+    case BPredTaken:
+    case BPredNotTaken:
     /* no other state */
     break;
 
-  default:
-    panic("bogus predictor class");
+    default:
+      panic("bogus predictor class");
   }
 
   /* allocate ret-addr stack */
   switch (class) {
-  case BPredComb:
-  case BPred2Level:
-  case BPred2bit:
-    {
+    case BPredComb:
+    case BPred2Level:
+    case BPred2bit:{
       int i;
 
       /* allocate BTB */
       if (!btb_sets || (btb_sets & (btb_sets-1)) != 0)
-	fatal("number of BTB sets must be non-zero and a power of two");
+      	fatal("number of BTB sets must be non-zero and a power of two");
       if (!btb_assoc || (btb_assoc & (btb_assoc-1)) != 0)
-	fatal("BTB associativity must be non-zero and a power of two");
+	      fatal("BTB associativity must be non-zero and a power of two");
 
-      if (!(pred->btb.btb_data = calloc(btb_sets * btb_assoc,
-					sizeof(struct bpred_btb_ent_t))))
-	fatal("cannot allocate BTB");
+      if (!(pred->btb.btb_data = calloc(btb_sets * btb_assoc,sizeof(struct bpred_btb_ent_t))))
+	      fatal("cannot allocate BTB");
 
       pred->btb.sets = btb_sets;
       pred->btb.assoc = btb_assoc;
 
       if (pred->btb.assoc > 1)
-	for (i=0; i < (pred->btb.assoc*pred->btb.sets); i++)
-	  {
-	    if (i % pred->btb.assoc != pred->btb.assoc - 1)
-	      pred->btb.btb_data[i].next = &pred->btb.btb_data[i+1];
-	    else
-	      pred->btb.btb_data[i].next = NULL;
+	      for (i=0; i < (pred->btb.assoc*pred->btb.sets); i++){
+	        if (i % pred->btb.assoc != pred->btb.assoc - 1)
+	          pred->btb.btb_data[i].next = &pred->btb.btb_data[i+1];
+	        else
+	          pred->btb.btb_data[i].next = NULL;
 	    
-	    if (i % pred->btb.assoc != pred->btb.assoc - 1)
-	      pred->btb.btb_data[i+1].prev = &pred->btb.btb_data[i];
-	  }
+	        if (i % pred->btb.assoc != pred->btb.assoc - 1)
+	          pred->btb.btb_data[i+1].prev = &pred->btb.btb_data[i];
+	      }
 
       /* allocate retstack */
       if ((retstack_size & (retstack_size-1)) != 0)
-	fatal("Return-address-stack size must be zero or a power of two");
+	      fatal("Return-address-stack size must be zero or a power of two");
       
       pred->retstack.size = retstack_size;
       if (retstack_size)
-	if (!(pred->retstack.stack = calloc(retstack_size, 
-					    sizeof(struct bpred_btb_ent_t))))
-	  fatal("cannot allocate return-address-stack");
+	      if (!(pred->retstack.stack = calloc(retstack_size,sizeof(struct bpred_btb_ent_t))))
+	        fatal("cannot allocate return-address-stack");
+      
       pred->retstack.tos = retstack_size - 1;
       
       break;
     }
 
-  case BPredTaken:
-  case BPredNotTaken:
-    /* no other state */
-    break;
+    case BPredTaken:
+    case BPredNotTaken:
+      /* no other state */
+      break;
 
-  default:
-    panic("bogus predictor class");
+    default:
+      panic("bogus predictor class");
   }
 
   return pred;
@@ -196,68 +188,61 @@ bpred_dir_create (
 
   cnt = -1;
   switch (class) {
-  case BPred2Level:
+    case BPred2Level:
     {
       if (!l1size || (l1size & (l1size-1)) != 0)
-	fatal("level-1 size, `%d', must be non-zero and a power of two", 
-	      l1size);
+	      fatal("level-1 size, `%d', must be non-zero and a power of two",l1size);
       pred_dir->config.two.l1size = l1size;
       
       if (!l2size || (l2size & (l2size-1)) != 0)
-	fatal("level-2 size, `%d', must be non-zero and a power of two", 
-	      l2size);
+	      fatal("level-2 size, `%d', must be non-zero and a power of two",l2size);
       pred_dir->config.two.l2size = l2size;
       
       if (!shift_width || shift_width > 30)
-	fatal("shift register width, `%d', must be non-zero and positive",
-	      shift_width);
+	      fatal("shift register width, `%d', must be non-zero and positive",shift_width);
       pred_dir->config.two.shift_width = shift_width;
       
       pred_dir->config.two.xor = xor;
       pred_dir->config.two.shiftregs = calloc(l1size, sizeof(int));
       if (!pred_dir->config.two.shiftregs)
-	fatal("cannot allocate shift register table");
+	      fatal("cannot allocate shift register table");
       
       pred_dir->config.two.l2table = calloc(l2size, sizeof(unsigned char));
       if (!pred_dir->config.two.l2table)
-	fatal("cannot allocate second level table");
+	      fatal("cannot allocate second level table");
 
       /* initialize counters to weakly this-or-that */
       flipflop = 1;
-      for (cnt = 0; cnt < l2size; cnt++)
-	{
-	  pred_dir->config.two.l2table[cnt] = flipflop;
-	  flipflop = 3 - flipflop;
-	}
+      for (cnt = 0; cnt < l2size; cnt++){
+	      pred_dir->config.two.l2table[cnt] = flipflop;
+	      flipflop = 3 - flipflop;
+	    }
 
-      break;
+    break;
     }
 
-  case BPred2bit:
-    if (!l1size || (l1size & (l1size-1)) != 0)
-      fatal("2bit table size, `%d', must be non-zero and a power of two", 
-	    l1size);
-    pred_dir->config.bimod.size = l1size;
-    if (!(pred_dir->config.bimod.table =
-	  calloc(l1size, sizeof(unsigned char))))
-      fatal("cannot allocate 2bit storage");
-    /* initialize counters to weakly this-or-that */
-    flipflop = 1;
-    for (cnt = 0; cnt < l1size; cnt++)
-      {
-	pred_dir->config.bimod.table[cnt] = flipflop;
-	flipflop = 3 - flipflop;
+    case BPred2bit:
+      if (!l1size || (l1size & (l1size-1)) != 0)
+        fatal("2bit table size, `%d', must be non-zero and a power of two",l1size);
+      pred_dir->config.bimod.size = l1size;
+      if (!(pred_dir->config.bimod.table = calloc(l1size, sizeof(unsigned char))))
+        fatal("cannot allocate 2bit storage");
+      /* initialize counters to weakly this-or-that */
+      flipflop = 1;
+      for (cnt = 0; cnt < l1size; cnt++){
+	      pred_dir->config.bimod.table[cnt] = flipflop;
+	      flipflop = 3 - flipflop;
       }
 
     break;
 
-  case BPredTaken:
-  case BPredNotTaken:
-    /* no other state */
+    case BPredTaken:
+    case BPredNotTaken:
+      /* no other state */
     break;
 
-  default:
-    panic("bogus branch direction predictor class");
+    default:
+      panic("bogus branch direction predictor class");
   }
 
   return pred_dir;
@@ -497,45 +482,30 @@ bpred_dir_lookup(struct bpred_dir_t *pred_dir,	/* branch dir predictor inst */
   /* Except for jumps, get a pointer to direction-prediction bits */
   switch (pred_dir->class) {
     case BPred2Level:
-      {
-	int l1index, l2index;
+    {
+	    int l1index, l2index;
 
-        /* traverse 2-level tables */
-        l1index = (baddr >> MD_BR_SHIFT) & (pred_dir->config.two.l1size - 1);
-        l2index = pred_dir->config.two.shiftregs[l1index];
-        if (pred_dir->config.two.xor)
-	  {
-#if 1
-	    /* this L2 index computation is more "compatible" to McFarling's
-	       verison of it, i.e., if the PC xor address component is only
-	       part of the index, take the lower order address bits for the
-	       other part of the index, rather than the higher order ones */
-	    l2index = (((l2index ^ (baddr >> MD_BR_SHIFT))
-			& ((1 << pred_dir->config.two.shift_width) - 1))
-		       | ((baddr >> MD_BR_SHIFT)
-			  << pred_dir->config.two.shift_width));
-#else
-	    l2index = l2index ^ (baddr >> MD_BR_SHIFT);
-#endif
-	  }
-	else
-	  {
-	    l2index =
-	      l2index
-		| ((baddr >> MD_BR_SHIFT) << pred_dir->config.two.shift_width);
-	  }
-        l2index = l2index & (pred_dir->config.two.l2size - 1);
+      /* traverse 2-level tables */
+      l1index = (baddr >> MD_BR_SHIFT) & (pred_dir->config.two.l1size - 1);
+      l2index = pred_dir->config.two.shiftregs[l1index];
+      if (pred_dir->config.two.xor){
+        // Do nothing
+	    }
+	    else{
+	      l2index = l2index | ((baddr >> MD_BR_SHIFT) << pred_dir->config.two.shift_width);
+	    }
+      l2index = l2index & (pred_dir->config.two.l2size - 1);
 
-        /* get a pointer to prediction state information */
-        p = &pred_dir->config.two.l2table[l2index];
-      }
-      break;
+      /* get a pointer to prediction state information */
+      p = &pred_dir->config.two.l2table[l2index];
+    }
+    break;
     case BPred2bit:
       p = &pred_dir->config.bimod.table[BIMOD_HASH(pred_dir, baddr)];
-      break;
+    break;
     case BPredTaken:
     case BPredNotTaken:
-      break;
+    break;
     default:
       panic("bogus branch direction predictor class");
     }
@@ -580,53 +550,47 @@ bpred_lookup(struct bpred_t *pred,	/* branch predictor instance */
   /* Except for jumps, get a pointer to direction-prediction bits */
   switch (pred->class) {
     case BPredComb:
-      if ((MD_OP_FLAGS(op) & (F_CTRL|F_UNCOND)) != (F_CTRL|F_UNCOND))
-	{
-	  char *bimod, *twolev, *meta;
-	  bimod = bpred_dir_lookup (pred->dirpred.bimod, baddr);
-	  twolev = bpred_dir_lookup (pred->dirpred.twolev, baddr);
-	  meta = bpred_dir_lookup (pred->dirpred.meta, baddr);
-	  dir_update_ptr->pmeta = meta;
-	  dir_update_ptr->dir.meta  = (*meta >= 2);
-	  dir_update_ptr->dir.bimod = (*bimod >= 2);
-	  dir_update_ptr->dir.twolev  = (*twolev >= 2);
-	  if (*meta >= 2)
-	    {
-	      dir_update_ptr->pdir1 = twolev;
-	      dir_update_ptr->pdir2 = bimod;
+      if ((MD_OP_FLAGS(op) & (F_CTRL|F_UNCOND)) != (F_CTRL|F_UNCOND)){
+	      char *bimod, *twolev, *meta;
+        // Alpha21264 GAg
+	      bimod = bpred_dir_lookup (pred->dirpred.bimod, baddr);
+	      // Alpha21264 PAg
+        twolev = bpred_dir_lookup (pred->dirpred.twolev, baddr);
+	      meta = bpred_dir_lookup (pred->dirpred.meta, baddr);
+	      dir_update_ptr->pmeta = meta;
+	      dir_update_ptr->dir.meta  = (*meta >= 2);
+	      dir_update_ptr->dir.bimod = (*bimod >= 2);
+        // Alpha21264, 3-bit 0counter 
+	      dir_update_ptr->dir.twolev  = (*twolev >= 4);
+	      if (*meta >= 2){
+	        dir_update_ptr->pdir1 = twolev;
+	        dir_update_ptr->pdir2 = bimod;
+	      }
+	      else{
+	        dir_update_ptr->pdir1 = bimod;
+	        dir_update_ptr->pdir2 = twolev;
+	      }
 	    }
-	  else
-	    {
-	      dir_update_ptr->pdir1 = bimod;
-	      dir_update_ptr->pdir2 = twolev;
-	    }
-	}
       break;
     case BPred2Level:
-      if ((MD_OP_FLAGS(op) & (F_CTRL|F_UNCOND)) != (F_CTRL|F_UNCOND))
-	{
-	  dir_update_ptr->pdir1 =
-	    bpred_dir_lookup (pred->dirpred.twolev, baddr);
-	}
+      if ((MD_OP_FLAGS(op) & (F_CTRL|F_UNCOND)) != (F_CTRL|F_UNCOND)){
+	      dir_update_ptr->pdir1 = bpred_dir_lookup (pred->dirpred.twolev, baddr);
+	    }
       break;
     case BPred2bit:
-      if ((MD_OP_FLAGS(op) & (F_CTRL|F_UNCOND)) != (F_CTRL|F_UNCOND))
-	{
-	  dir_update_ptr->pdir1 =
-	    bpred_dir_lookup (pred->dirpred.bimod, baddr);
-	}
+      if ((MD_OP_FLAGS(op) & (F_CTRL|F_UNCOND)) != (F_CTRL|F_UNCOND)){
+	      dir_update_ptr->pdir1 = bpred_dir_lookup (pred->dirpred.bimod, baddr);
+	    }
       break;
     case BPredTaken:
       return btarget;
     case BPredNotTaken:
-      if ((MD_OP_FLAGS(op) & (F_CTRL|F_UNCOND)) != (F_CTRL|F_UNCOND))
-	{
-	  return baddr + sizeof(md_inst_t);
-	}
-      else
-	{
-	  return btarget;
-	}
+      if ((MD_OP_FLAGS(op) & (F_CTRL|F_UNCOND)) != (F_CTRL|F_UNCOND)){
+	      return baddr + sizeof(md_inst_t);
+	    }
+      else{
+	      return btarget;
+	    }
     default:
       panic("bogus predictor class");
   }
@@ -669,51 +633,45 @@ bpred_lookup(struct bpred_t *pred,	/* branch predictor instance */
   /* not a return. Get a pointer into the BTB */
   index = (baddr >> MD_BR_SHIFT) & (pred->btb.sets - 1);
 
-  if (pred->btb.assoc > 1)
-    {
-      index *= pred->btb.assoc;
+  if (pred->btb.assoc > 1){
+    index *= pred->btb.assoc;
 
-      /* Now we know the set; look for a PC match */
-      for (i = index; i < (index+pred->btb.assoc) ; i++)
-	if (pred->btb.btb_data[i].addr == baddr)
-	  {
+    /* Now we know the set; look for a PC match */
+    for (i = index; i < (index+pred->btb.assoc) ; i++)
+	    if (pred->btb.btb_data[i].addr == baddr){
 	    /* match */
-	    pbtb = &pred->btb.btb_data[i];
-	    break;
-	  }
-    }	
-  else
-    {
-      pbtb = &pred->btb.btb_data[index];
-      if (pbtb->addr != baddr)
-	pbtb = NULL;
-    }
+	      pbtb = &pred->btb.btb_data[i];
+	      break;
+	    }
+  }	
+  else{
+    pbtb = &pred->btb.btb_data[index];
+    if (pbtb->addr != baddr)
+	    pbtb = NULL;
+  }
 
   /*
    * We now also have a pointer into the BTB for a hit, or NULL otherwise
    */
 
   /* if this is a jump, ignore predicted direction; we know it's taken. */
-  if ((MD_OP_FLAGS(op) & (F_CTRL|F_UNCOND)) == (F_CTRL|F_UNCOND))
-    {
+  if ((MD_OP_FLAGS(op) & (F_CTRL|F_UNCOND)) == (F_CTRL|F_UNCOND)){
       return (pbtb ? pbtb->target : 1);
-    }
+  }
 
   /* otherwise we have a conditional branch */
-  if (pbtb == NULL)
-    {
-      /* BTB miss -- just return a predicted direction */
+  if (pbtb == NULL){
+    /* BTB miss -- just return a predicted direction */
       return ((*(dir_update_ptr->pdir1) >= 2)
 	      ? /* taken */ 1
 	      : /* not taken */ 0);
-    }
-  else
-    {
+  }
+  else{
       /* BTB hit, so return target if it's a predicted-taken branch */
       return ((*(dir_update_ptr->pdir1) >= 2)
 	      ? /* taken */ pbtb->target
 	      : /* not taken */ 0);
-    }
+  }
 }
 
 /* Speculative execution can corrupt the ret-addr stack.  So for each
@@ -769,40 +727,35 @@ bpred_update(struct bpred_t *pred,	/* branch predictor instance */
   else
     pred->misses++;
 
-  if (dir_update_ptr->dir.ras)
-    {
-      pred->used_ras++;
-      if (correct)
-	pred->ras_hits++;
-    }
-  else if ((MD_OP_FLAGS(op) & (F_CTRL|F_COND)) == (F_CTRL|F_COND))
-    {
-      if (dir_update_ptr->dir.meta)
-	pred->used_2lev++;
-      else
-	pred->used_bimod++;
-    }
+  if (dir_update_ptr->dir.ras){
+    pred->used_ras++;
+    if (correct)
+	    pred->ras_hits++;
+  }
+  else if ((MD_OP_FLAGS(op) & (F_CTRL|F_COND)) == (F_CTRL|F_COND)){
+    if (dir_update_ptr->dir.meta)
+	    pred->used_2lev++;
+    else
+	    pred->used_bimod++;
+  }
 
   /* keep stats about JR's; also, but don't change any bpred state for JR's
    * which are returns unless there's no retstack */
-  if (MD_IS_INDIR(op))
-    {
-      pred->jr_seen++;
-      if (correct)
-	pred->jr_hits++;
+  if (MD_IS_INDIR(op)){
+    pred->jr_seen++;
+    if (correct)
+	    pred->jr_hits++;
       
-      if (!dir_update_ptr->dir.ras)
-	{
-	  pred->jr_non_ras_seen++;
-	  if (correct)
-	    pred->jr_non_ras_hits++;
-	}
-      else
-	{
+    if (!dir_update_ptr->dir.ras){
+	    pred->jr_non_ras_seen++;
+	    if (correct)
+	      pred->jr_non_ras_hits++;
+	  }
+    else{
 	  /* return that used the ret-addr stack; no further work to do */
-	  return;
-	}
-    }
+	    return;
+	  }
+  }
 
   /* Can exit now if this is a stateless predictor */
   if (pred->class == BPredNotTaken || pred->class == BPredTaken)
@@ -818,80 +771,84 @@ bpred_update(struct bpred_t *pred,	/* branch predictor instance */
   if (MD_IS_CALL(op) && pred->retstack.size)
     {
       pred->retstack.tos = (pred->retstack.tos + 1)% pred->retstack.size;
-      pred->retstack.stack[pred->retstack.tos].target = 
-	baddr + sizeof(md_inst_t);
+      pred->retstack.stack[pred->retstack.tos].target = baddr + sizeof(md_inst_t);
       pred->retstack_pushes++;
     }
 #endif /* RAS_BUG_COMPATIBLE */
 
   /* update L1 table if appropriate */
   /* L1 table is updated unconditionally for combining predictor too */
-  if ((MD_OP_FLAGS(op) & (F_CTRL|F_UNCOND)) != (F_CTRL|F_UNCOND) &&
-      (pred->class == BPred2Level || pred->class == BPredComb))
-    {
-      int l1index, shift_reg;
-      
-      /* also update appropriate L1 history register */
-      l1index =
-	(baddr >> MD_BR_SHIFT) & (pred->dirpred.twolev->config.two.l1size - 1);
-      shift_reg =
-	(pred->dirpred.twolev->config.two.shiftregs[l1index] << 1) | (!!taken);
-      pred->dirpred.twolev->config.two.shiftregs[l1index] =
-	shift_reg & ((1 << pred->dirpred.twolev->config.two.shift_width) - 1);
-    }
+  // When implement Alpha21264, we use built-in Comb mode, we need to separate Comb and 2Level here
+  
+  // Update Comb, Alpha21264
+  if ((MD_OP_FLAGS(op) & (F_CTRL|F_UNCOND)) != (F_CTRL|F_UNCOND) && (pred->class == BPredComb)){
+    int l1index, shift_reg;
+    // Update PAg  
+    /* also update appropriate L1 history register */
+    l1index = (baddr >> MD_BR_SHIFT) & (pred->dirpred.twolev->config.two.l1size - 1);
+    shift_reg =(pred->dirpred.twolev->config.two.shiftregs[l1index] << 1) | (!!taken);
+    pred->dirpred.twolev->config.two.shiftregs[l1index] =shift_reg & ((1 << pred->dirpred.twolev->config.two.shift_width) - 1);
+    
+    //Update GAg
+    l1index = (baddr >> MD_BR_SHIFT) & (pred->dirpred.bimod->config.two.l1size - 1);
+    shift_reg =(pred->dirpred.bimod->config.two.shiftregs[l1index] << 1) | (!!taken);
+    pred->dirpred.bimod->config.two.shiftregs[l1index] =shift_reg & ((1 << pred->dirpred.bimod->config.two.shift_width) - 1);
+    
+  }
 
+  // Update 2level
+  if ((MD_OP_FLAGS(op) & (F_CTRL|F_UNCOND)) != (F_CTRL|F_UNCOND) && (pred->class == BPred2Level)){
+    int l1index, shift_reg;
+    /* also update appropriate L1 history register */
+    l1index = (baddr >> MD_BR_SHIFT) & (pred->dirpred.twolev->config.two.l1size - 1);
+    shift_reg =(pred->dirpred.twolev->config.two.shiftregs[l1index] << 1) | (!!taken);
+    pred->dirpred.twolev->config.two.shiftregs[l1index] =shift_reg & ((1 << pred->dirpred.twolev->config.two.shift_width) - 1);
+    
+  }
   /* find BTB entry if it's a taken branch (don't allocate for non-taken) */
-  if (taken)
-    {
-      index = (baddr >> MD_BR_SHIFT) & (pred->btb.sets - 1);
+  if (taken){
+    index = (baddr >> MD_BR_SHIFT) & (pred->btb.sets - 1);
       
-      if (pred->btb.assoc > 1)
-	{
-	  index *= pred->btb.assoc;
+    if (pred->btb.assoc > 1){
+	    index *= pred->btb.assoc;
 	  
 	  /* Now we know the set; look for a PC match; also identify
 	   * MRU and LRU items */
-	  for (i = index; i < (index+pred->btb.assoc) ; i++)
-	    {
-	      if (pred->btb.btb_data[i].addr == baddr)
-		{
-		  /* match */
-		  assert(!pbtb);
-		  pbtb = &pred->btb.btb_data[i];
-		}
+	    for (i = index; i < (index+pred->btb.assoc) ; i++){
+	      if (pred->btb.btb_data[i].addr == baddr){
+		      /* match */
+		      assert(!pbtb);
+		      pbtb = &pred->btb.btb_data[i];
+		    }
 	      
-	      dassert(pred->btb.btb_data[i].prev 
-		      != pred->btb.btb_data[i].next);
-	      if (pred->btb.btb_data[i].prev == NULL)
-		{
-		  /* this is the head of the lru list, ie current MRU item */
-		  dassert(lruhead == NULL);
-		  lruhead = &pred->btb.btb_data[i];
-		}
-	      if (pred->btb.btb_data[i].next == NULL)
-		{
-		  /* this is the tail of the lru list, ie the LRU item */
-		  dassert(lruitem == NULL);
-		  lruitem = &pred->btb.btb_data[i];
-		}
+	      dassert(pred->btb.btb_data[i].prev != pred->btb.btb_data[i].next);
+	      if (pred->btb.btb_data[i].prev == NULL){
+		      /* this is the head of the lru list, ie current MRU item */
+		      dassert(lruhead == NULL);
+		      lruhead = &pred->btb.btb_data[i];
+		    }
+	      if (pred->btb.btb_data[i].next == NULL){
+		      /* this is the tail of the lru list, ie the LRU item */
+		      dassert(lruitem == NULL);
+		      lruitem = &pred->btb.btb_data[i];
+		    }
 	    }
-	  dassert(lruhead && lruitem);
+	    dassert(lruhead && lruitem);
 	  
-	  if (!pbtb)
-	    /* missed in BTB; choose the LRU item in this set as the victim */
-	    pbtb = lruitem;	
-	  /* else hit, and pbtb points to matching BTB entry */
+	    if (!pbtb)
+	      /* missed in BTB; choose the LRU item in this set as the victim */
+	      pbtb = lruitem;	
+	      /* else hit, and pbtb points to matching BTB entry */
 	  
-	  /* Update LRU state: selected item, whether selected because it
-	   * matched or because it was LRU and selected as a victim, becomes 
-	   * MRU */
-	  if (pbtb != lruhead)
-	    {
+	    /* Update LRU state: selected item, whether selected because it
+	     * matched or because it was LRU and selected as a victim, becomes 
+	     * MRU */
+	    if (pbtb != lruhead){
 	      /* this splices out the matched entry... */
 	      if (pbtb->prev)
-		pbtb->prev->next = pbtb->next;
+		      pbtb->prev->next = pbtb->next;
 	      if (pbtb->next)
-		pbtb->next->prev = pbtb->prev;
+		      pbtb->next->prev = pbtb->prev;
 	      /* ...and this puts the matched entry at the head of the list */
 	      pbtb->next = lruhead;
 	      pbtb->prev = NULL;
@@ -899,11 +856,11 @@ bpred_update(struct bpred_t *pred,	/* branch predictor instance */
 	      dassert(pbtb->prev || pbtb->next);
 	      dassert(pbtb->prev != pbtb->next);
 	    }
-	  /* else pbtb is already MRU item; do nothing */
-	}
-      else
-	pbtb = &pred->btb.btb_data[index];
-    }
+	    /* else pbtb is already MRU item; do nothing */
+	  }
+    else
+	    pbtb = &pred->btb.btb_data[index];
+  }
       
   /* 
    * Now 'p' is a possibly null pointer into the direction prediction table, 
@@ -912,56 +869,66 @@ bpred_update(struct bpred_t *pred,	/* branch predictor instance */
    */
 
   /* update state (but not for jumps) */
-  if (dir_update_ptr->pdir1)
-    {
-      if (taken)
-	{
-	  if (*dir_update_ptr->pdir1 < 3)
-	    ++*dir_update_ptr->pdir1;
-	}
-      else
-	{ /* not taken */
-	  if (*dir_update_ptr->pdir1 > 0)
+  if (dir_update_ptr->pdir1){
+    if (taken){
+      // PAg, 3-bit counter
+	    if (dir_update_ptr->pmeta != NULL && *(dir_update_ptr->pmeta) >= 2){
+        if (*dir_update_ptr->pdir1 < 7){
+	        ++*dir_update_ptr->pdir1;
+        }
+      }
+      // Default GAg, 2-bit counter
+      else{
+        if (*dir_update_ptr->pdir1 < 3){
+	        ++*dir_update_ptr->pdir1;
+        }
+      }
+	  }
+    else{ /* not taken */
+	    if (*dir_update_ptr->pdir1 > 0)
 	    --*dir_update_ptr->pdir1;
-	}
-    }
+	  }
+  }
 
   /* combining predictor also updates second predictor and meta predictor */
   /* second direction predictor */
-  if (dir_update_ptr->pdir2)
-    {
-      if (taken)
-	{
-	  if (*dir_update_ptr->pdir2 < 3)
-	    ++*dir_update_ptr->pdir2;
-	}
-      else
-	{ /* not taken */
-	  if (*dir_update_ptr->pdir2 > 0)
-	    --*dir_update_ptr->pdir2;
-	}
-    }
+  if(dir_update_ptr->pdir2){
+    if(taken){
+      // 3-bit counter for twolev predictor
+      if(dir_update_ptr->pmeta != NULL && *(dir_update_ptr->pmeta) < 2){
+        if (*dir_update_ptr->pdir2 < 7){
+					++*dir_update_ptr->pdir2;	
+        }
+      }
+      // original 2-bit counter for bimodal predictor
+	    else{
+        if (*dir_update_ptr->pdir2 < 3){
+	        ++*dir_update_ptr->pdir2;
+        }
+      }
+	  }
+    else{ /* not taken */
+	    if (*dir_update_ptr->pdir2 > 0)
+	      --*dir_update_ptr->pdir2;
+	  }
+  }
 
   /* meta predictor */
-  if (dir_update_ptr->pmeta)
-    {
-      if (dir_update_ptr->dir.bimod != dir_update_ptr->dir.twolev)
-	{
-	  /* we only update meta predictor if directions were different */
-	  if (dir_update_ptr->dir.twolev == (unsigned int)taken)
-	    {
+  if (dir_update_ptr->pmeta){
+    if (dir_update_ptr->dir.bimod != dir_update_ptr->dir.twolev){
+	    /* we only update meta predictor if directions were different */
+	    if (dir_update_ptr->dir.twolev == (unsigned int)taken){
 	      /* 2-level predictor was correct */
 	      if (*dir_update_ptr->pmeta < 3)
-		++*dir_update_ptr->pmeta;
+		      ++*dir_update_ptr->pmeta;
 	    }
-	  else
-	    {
+	    else{
 	      /* bimodal predictor was correct */
 	      if (*dir_update_ptr->pmeta > 0)
-		--*dir_update_ptr->pmeta;
+		      --*dir_update_ptr->pmeta;
 	    }
-	}
-    }
+	  }
+  }
 
   /* update BTB (but only for taken branches) */
   if (pbtb)
