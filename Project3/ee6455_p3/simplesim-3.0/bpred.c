@@ -558,11 +558,12 @@ bpred_lookup(struct bpred_t *pred,	/* branch predictor instance */
         twolev = bpred_dir_lookup (pred->dirpred.twolev, baddr);
 	      meta = bpred_dir_lookup (pred->dirpred.meta, baddr);
 	      dir_update_ptr->pmeta = meta;
-	      dir_update_ptr->dir.meta  = (*meta >= 2);
+        // Alpha21264, 3-bit counter
+	      dir_update_ptr->dir.meta  = (*meta >= 4);
 	      dir_update_ptr->dir.bimod = (*bimod >= 2);
-        // Alpha21264, 3-bit 0counter 
+        // Alpha21264, 3-bit counter 
 	      dir_update_ptr->dir.twolev  = (*twolev >= 4);
-	      if (*meta >= 2){
+	      if (*meta >= 4){
 	        dir_update_ptr->pdir1 = twolev;
 	        dir_update_ptr->pdir2 = bimod;
 	      }
@@ -872,7 +873,7 @@ bpred_update(struct bpred_t *pred,	/* branch predictor instance */
   if (dir_update_ptr->pdir1){
     if (taken){
       // PAg, 3-bit counter
-	    if (dir_update_ptr->pmeta != NULL && *(dir_update_ptr->pmeta) >= 2){
+	    if (dir_update_ptr->pmeta != NULL && *(dir_update_ptr->pmeta) >= 4){
         if (*dir_update_ptr->pdir1 < 7){
 	        ++*dir_update_ptr->pdir1;
         }
@@ -895,7 +896,7 @@ bpred_update(struct bpred_t *pred,	/* branch predictor instance */
   if(dir_update_ptr->pdir2){
     if(taken){
       // 3-bit counter for twolev predictor
-      if(dir_update_ptr->pmeta != NULL && *(dir_update_ptr->pmeta) < 2){
+      if(dir_update_ptr->pmeta != NULL && *(dir_update_ptr->pmeta) < 4){
         if (*dir_update_ptr->pdir2 < 7){
 					++*dir_update_ptr->pdir2;	
         }
@@ -919,7 +920,7 @@ bpred_update(struct bpred_t *pred,	/* branch predictor instance */
 	    /* we only update meta predictor if directions were different */
 	    if (dir_update_ptr->dir.twolev == (unsigned int)taken){
 	      /* 2-level predictor was correct */
-	      if (*dir_update_ptr->pmeta < 3)
+	      if (*dir_update_ptr->pmeta < 7)   // 3-bit counter
 		      ++*dir_update_ptr->pmeta;
 	    }
 	    else{
