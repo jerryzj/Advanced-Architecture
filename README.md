@@ -6,4 +6,4 @@
 ### Project List
 * Project 1 : L2 Cache Replacement Policies
 * Project 2 : Tomasulo Algorithm Simulator
-* Project 3 : Branch Prediction Policies
+* Project 3 : Branch Prediction on SimpleScalar
